@@ -34,9 +34,9 @@ model, pad, learning_rate = md.ln_model(input_shape=(size_t, size_x, n_c), filte
 #y_dev = y_dev[:, 0:-1-2*pad+1, :, :]
 #y_test = y_test[:, 0:-1-2*pad+1, :, :]
 
-y_train = y_train[:, 2*pad-1:-1, :, :]
-y_dev = y_dev[:,2*pad-1:-1, :, :]
-y_test = y_test[:, 2*pad-1:-1, :, :]
+y_train = y_train[:, 0:-1-2*pad+1, :, :]
+y_dev = y_dev[:,0:-1-2*pad+1, :, :]
+y_test = y_test[:, 0:-1-2*pad+1, :, :]
 
 # set up the model and fit it
 t = time.time()
@@ -44,7 +44,7 @@ adamOpt = optimizers.Adam(lr=learning_rate)
 model.compile(optimizer=adamOpt, loss='mean_squared_error', metrics=[md.r2])
 hist = model.fit(x_train, y_train, verbose=2, epochs=20, batch_size=np.power(2, 12), validation_data=(x_dev, y_dev))
 elapsed = time.time() - t
-model.save('kerasModel_' + str(num_filt) + 'Filt' + '.h5')
+#model.save('kerasModel_' + str(num_filt) + 'Filt' + '.h5')
 loss = hist.history['loss']
 val_loss = hist.history['val_loss']
 r2 = hist.history['r2']
