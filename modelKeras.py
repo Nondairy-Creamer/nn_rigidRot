@@ -45,7 +45,7 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2):
     combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None))(subtractedLayer)
 
     averaged_space = sum_layer(combine_filters)
-    
+
     # Create model
     model = Model(inputs=X_input, outputs=averaged_space, name='SimpleMotion')
 
