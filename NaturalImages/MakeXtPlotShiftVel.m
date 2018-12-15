@@ -29,7 +29,7 @@ function xtPlot = MakeXtPlotShiftVel(xyPlot,startX,startY,position,phi)
 
         for sc = 1:numScenes
             for pp = 1:numPhi
-                posMod = mod(position(:,ss,:)+startX(ss)+phi(pp),360);
+                posMod = mod(-position(:,ss,:)+startX(ss)+phi(pp),360);
                 xtPlot(:,pp,sc,ss,:) = interp1(x,xyPlot(yPointsInd(ss),:,sc),posMod);
             end
         end

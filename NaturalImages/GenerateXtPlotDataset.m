@@ -1,4 +1,4 @@
-function GenerateXtPlots
+function GenerateXtPlotDataset
     % get natural images
     inputImages = 'natImageCombinedFilteredContrast';
 %     inputImages = 'natImageCombinedFiltered';

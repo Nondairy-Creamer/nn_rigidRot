@@ -6,7 +6,6 @@ import tensorflow.keras.backend as K
 import h5py as h
 import numpy as np
 from tensorflow.keras.layers import *
-import tensorflow as tf
 
 
 def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2):
@@ -153,6 +152,7 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1):
     unit2_multiply = multiply([unit2_left, unit2_right])
 
     full_reich = subtract([unit1_multiply, unit2_multiply])
+    # full_reich = unit1_multiply
 
     # combine all the correlators
     # conv_x_size = int(x_layer2.shape[2])
@@ -171,12 +171,12 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1):
 def load_data_rr(path):
     mat_contents = h.File(path, 'r')
 
-    trainX = mat_contents['trainX'].value
-    trainY = mat_contents['trainY'].value
-    devX = mat_contents['devX'].value
-    devY = mat_contents['devY'].value
-    testX = mat_contents['testX'].value
-    testY = mat_contents['testY'].value
+    trainX = np.float32(mat_contents['trainX'].value)
+    trainY = np.float32(mat_contents['trainY'].value)
+    devX = np.float32(mat_contents['devX'].value)
+    devY = np.float32(mat_contents['devY'].value)
+    testX = np.float32(mat_contents['testX'].value)
+    testY = np.float32(mat_contents['testY'].value)
 
     trainX = np.expand_dims(trainX, axis=3)
     devX = np.expand_dims(devX, axis=3)
@@ -193,6 +193,5 @@ def load_data_rr(path):
 
 
 def r2(y_true, y_pred):
-    r2_value = 1 - K.sum(K.square(y_pred - y_true)) / \
-                     K.sum(np.square(y_true - K.mean(y_true)))
+    r2_value = 1 - K.sum(K.square(y_pred - y_true))/K.sum(K.square(y_true - K.mean(y_true)))
     return r2_value

@@ -5,20 +5,17 @@ import time
 from tensorflow.keras import optimizers
 from tensorflow.keras.utils import plot_model
 import scipy.io as sio
+import tensorflow as tf
 
 # define the input path
-# path = 'C:\\CDocuments\\python\\NaturalImages\\xtPlot_test.mat'
-#path = 'C:\\CDocuments\\python\\NaturalImages\\xtPlot_natImageCombinedFiltered_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
-path = 'C:\\CDocuments\\python\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
-# path = 'C:\\CDocuments\\python\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_2s_10traces_355phi_100Hz_005devFrac.mat'
-# path = 'C:\\CDocuments\\python\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_2s_10traces_355phi_100Hz_01devFrac.mat'
+path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
 
 # load in data set
 x_train, y_train, x_dev, y_dev, x_test, y_test = md.load_data_rr(path)
 
 # plot example from training set
-"""
-plt.figure(1)
+
+plt.figure
 for i in range(9):
     plt.subplot(3, 3, i+1)
     img = plt.imshow(x_train[9+i, :, :, 0])
@@ -26,12 +23,12 @@ for i in range(9):
     img.set_cmap('RdBu_r')
 
 plt.show()
-"""
+
 
 # intiialize model
 m, size_t, size_x, n_c = x_train.shape
 num_filt = 16
-# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 5), num_filter=2)
+# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 5), num_filter=1)
 # model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep(input_shape=(size_t, size_x, n_c), filter_shape=((21, 5), (21, 5)), num_filter=(16, 4))
 model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 10), num_hrc=1)
 
@@ -62,7 +59,7 @@ y_test = y_test/np.std(y_test, axis=(1, 2), keepdims=True)
 t = time.time()
 adamOpt = optimizers.Adam(lr=learning_rate)
 model.compile(optimizer=adamOpt, loss='mean_squared_error', metrics=[md.r2])
-hist = model.fit(x_train, y_train, verbose=2, epochs=50, batch_size=batch_size, validation_data=(x_dev, y_dev))
+hist = model.fit(x_train, y_train, verbose=2, epochs=2, batch_size=batch_size, validation_data=(x_dev, y_dev))
 elapsed = time.time() - t
 
 # grab the loss and R2 over time
