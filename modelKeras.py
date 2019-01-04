@@ -8,9 +8,9 @@ import numpy as np
 from tensorflow.keras.layers import *
 
 
-def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2):
+def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*1
-    batch_size = np.power(2, 6)
+    batch_size = np.power(2, 5)
 
     # Define the input as a tensor with shape input_shape
     X_input = Input(input_shape)
@@ -43,7 +43,10 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2):
     conv_x_size = 1
     combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None))(subtractedLayer)
 
-    averaged_space = sum_layer(combine_filters)
+    if sum_over_space:
+        averaged_space = sum_layer(combine_filters)
+    else:
+        averaged_space = combine_filters
 
     # Create model
     model = Model(inputs=X_input, outputs=averaged_space, name='SimpleMotion')
@@ -53,7 +56,7 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2):
 
 def ln_model_deep(input_shape=(11, 9, 1), filter_shape=((21, 5), (21, 5)), num_filter=(4, 1)):
     learning_rate = 0.001*1
-    batch_size = np.power(2, 6)
+    batch_size = np.power(2, 5)
     # ln model of the structure
     # conv, relu, conv, relu, subtract off mirror symmetric subunits, linear combination
 
@@ -116,10 +119,10 @@ def ln_model_deep(input_shape=(11, 9, 1), filter_shape=((21, 5), (21, 5)), num_f
     return model, pad_x, pad_t, learning_rate, batch_size
 
 
-def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1):
+def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_space=True):
     # set the learning rate that works for this model
     learning_rate = 0.001 * 1
-    batch_size = np.power(2, 6)
+    batch_size = np.power(2, 5)
 
     # output the amount that this model will reduce the space and time variable by
     pad_x = int((filter_shape[1] - 1) / 2)
@@ -160,7 +163,72 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1):
     combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
                    kernel_initializer=glorot_uniform(seed=None))(full_reich)
 
-    sum_reich = sum_layer(combine_corr)
+    if sum_over_space:
+        sum_reich = sum_layer(combine_corr)
+    else:
+        sum_reich = combine_corr
+
+    # Create model
+    model = Model(inputs=model_input, outputs=sum_reich, name='ReichCorr')
+
+    return model, pad_x, pad_t, learning_rate, batch_size
+
+
+def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_space=True):
+    # set the learning rate that works for this model
+    learning_rate = 0.001 * 1
+    batch_size = np.power(2, 5)
+
+    # output the amount that this model will reduce the space and time variable by
+    pad_x = int((filter_shape[1] - 1) / 2)
+    pad_t = int((filter_shape[0] - 1) / 2)
+
+    # Define the input as a tensor with shape input_shape
+    model_input = Input(input_shape)
+
+    left_in_t = Conv2D(num_hrc, (filter_shape[0], 1), strides=(1, 1), name='conv1t', use_bias=False,
+                       kernel_initializer=glorot_uniform(seed=None))
+
+    left_in_x = Conv2D(num_hrc, (1, filter_shape[1]), strides=(1, 1), name='conv1x',
+                     kernel_initializer=glorot_uniform(seed=None))
+
+    right_in_t = Conv2D(num_hrc, (filter_shape[0], 1), strides=(1, 1), name='conv2t', use_bias=False,
+                      kernel_initializer=glorot_uniform(seed=None))
+
+    right_in_x = Conv2D(num_hrc, (1, filter_shape[1]), strides=(1, 1), name='conv2x',
+                      kernel_initializer=glorot_uniform(seed=None))
+
+    # make reversal layers to flip convolutions
+    reverse_layer = Lambda(lambda lam: K.reverse(lam, axes=2))
+
+    # make sum layer
+    sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
+
+    # calculate unit1 inputs
+    unit1_left = left_in_x(left_in_t(model_input))
+    unit1_right = right_in_x(right_in_t(model_input))
+
+    unit1_multiply = multiply([unit1_left, unit1_right])
+
+    # calculate unit2 inputs
+    unit2_left = reverse_layer(left_in_x(left_in_t(reverse_layer(model_input))))
+    unit2_right = reverse_layer(right_in_x(right_in_t(reverse_layer(model_input))))
+
+    unit2_multiply = multiply([unit2_left, unit2_right])
+
+    full_reich = subtract([unit1_multiply, unit2_multiply])
+    # full_reich = unit1_multiply
+
+    # combine all the correlators
+    # conv_x_size = int(x_layer2.shape[2])
+    conv_x_size = 1
+    combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
+                   kernel_initializer=glorot_uniform(seed=None))(full_reich)
+
+    if sum_over_space:
+        sum_reich = sum_layer(combine_corr)
+    else:
+        sum_reich = combine_corr
 
     # Create model
     model = Model(inputs=model_input, outputs=sum_reich, name='ReichCorr')
