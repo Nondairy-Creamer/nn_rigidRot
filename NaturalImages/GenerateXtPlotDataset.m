@@ -15,20 +15,24 @@ function GenerateXtPlotDataset
         xyPlot(:,:,ss) = circshift(xyPlot(:,:,ss),[0 floor(rand*size(xyPlot,2)) 0]);
     end
     
-    numScenes = 20;
+    numScenes = 40;
+%     numScenes = size(xyPlot,3);
+    
+    % radnomly shuffle scene order
+    newInd = randperm(numScenes)';
     
     % crop dataset
-    xyPlot = xyPlot(:,:,1:numScenes);
+    xyPlot = xyPlot(:,:,newInd(1:numScenes));
     
     xyRes = 360/size(xyPlot,2);
     yLim = xyRes*size(xyPlot,1);
-    sampleFreq = 100; % Hz
-    totalTime = 2; % s
-    numTraces = 5;
+    sampleFreq = 1000; % Hz
+    totalTime = 1; % s
+    numTraces = 1;
     numTime = sampleFreq*totalTime+1;
     
     %% choose phi
-    phi = (0:5:355)';
+    phi = (0:2.5:355)';
     
     %% get xy points
     xSamplePoints = (0:360:359)';
@@ -91,11 +95,10 @@ function GenerateXtPlotDataset
     trainNum = round(numScenes-2*devNum);
 
     % get train/dev/train inds
-    newInd = randperm(numScenes)';
-    
-    trainInd = newInd(1:end-2*devNum);
-    devInd = newInd(end-2*devNum+1:end-devNum);
-    testInd = newInd(end-devNum+1:end);
+    trainInd = 1:numScenes-2*devNum;
+
+    devInd = numScenes-2*devNum+1:numScenes-devNum;
+    testInd = numScenes-devNum+1:numScenes;
     
     % define the test and train x/y pairs
     trainX = xtPlot(:,:,trainInd,:,:);
