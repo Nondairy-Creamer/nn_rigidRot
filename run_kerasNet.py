@@ -8,7 +8,11 @@ import scipy.io as sio
 import tensorflow as tf
 
 # define the input path
-path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
+# path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
+# path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_1000Hz_005devFrac.mat'
+path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_40scenes_1s_2traces_355phi_1000Hz_005devFrac.mat'
+# path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_100scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
+# path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_421scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
 
 # load in data set
 x_train, y_train, x_dev, y_dev, x_test, y_test = md.load_data_rr(path)
@@ -28,23 +32,26 @@ plt.show()
 # intiialize model
 m, size_t, size_x, n_c = x_train.shape
 num_filt = 16
-# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 5), num_filter=1)
+sum_over_space = False
+# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(31, 11), num_filter=2, sum_over_space=sum_over_space)
 # model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep(input_shape=(size_t, size_x, n_c), filter_shape=((21, 5), (21, 5)), num_filter=(16, 4))
-model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 10), num_hrc=1)
+# model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 11), num_hrc=1, sum_over_space=sum_over_space)
+model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_sep(input_shape=(size_t, size_x, n_c), filter_shape=(41, 21), num_hrc=1, sum_over_space=sum_over_space)
 
-# repeat y data to fit output conv size
-# y_train = np.tile(y_train, (1, 1, size_x, 1))
-# y_dev = np.tile(y_dev, (1, 1, size_x, 1))
-# y_test = np.tile(y_test, (1, 1, size_x, 1))
+# format y data to fit with output
+if sum_over_space:
+    y_train = y_train[:, 0:-1 - 2 * pad_t + 1, :, :]
+    y_dev = y_dev[:, 0:-1 - 2 * pad_t + 1, :, :]
+    y_test = y_test[:, 0:-1 - 2 * pad_t + 1, :, :]
+else:
+    # repeat y data to fit output conv size
+    y_train = np.tile(y_train, (1, 1, size_x, 1))
+    y_dev = np.tile(y_dev, (1, 1, size_x, 1))
+    y_test = np.tile(y_test, (1, 1, size_x, 1))
 
-# get rid of edges of y data
-# y_train = y_train[:, 0:-1-2*pad_t+1, pad_x:-1-pad_x+1, :]
-# y_dev = y_dev[:, 0:-1-2*pad_t+1, pad_x:-1-pad_x+1, :]
-# y_test = y_test[:, 0:-1-2*pad_t+1, pad_x:-1-pad_x+1, :]
-
-y_train = y_train[:, 0:-1-2*pad_t+1, :, :]
-y_dev = y_dev[:, 0:-1-2*pad_t+1, :, :]
-y_test = y_test[:, 0:-1-2*pad_t+1, :, :]
+    y_train = y_train[:, 0:-1-2*pad_t+1, pad_x:-1-pad_x+1, :]
+    y_dev = y_dev[:, 0:-1-2*pad_t+1, pad_x:-1-pad_x+1, :]
+    y_test = y_test[:, 0:-1-2*pad_t+1, pad_x:-1-pad_x+1, :]
 
 # normalize images
 x_train = x_train/np.std(x_train, axis=(1, 2), keepdims=True)
@@ -79,9 +86,12 @@ for l in model.layers:
 
     ww += 1
 
-    if len(all_weights) == 2:
+    if len(all_weights) > 0:
         weights = all_weights[0]
-        biases = all_weights[1]
+        if len(all_weights) == 2:
+            biases = all_weights[1]
+        else:
+            biases = [0]
 
         imageDict["weight" + str(ww)] = weights
         imageDict["biases" + str(ww)] = biases
