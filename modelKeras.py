@@ -174,6 +174,47 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
     return model, pad_x, pad_t, learning_rate, batch_size
 
 
+def hrc_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_space=True):
+    # set the learning rate that works for this model
+    learning_rate = 0.001 * .01
+    batch_size = np.power(2, 3)
+
+    # output the amount that this model will reduce the space and time variable by
+    pad_x = int((filter_shape[1] - 1) / 2)
+    pad_t = int((filter_shape[0] - 1) / 2)
+
+    # Define the input as a tensor with shape input_shape
+    model_input = Input(input_shape)
+
+    left_in = Conv2D(num_hrc, filter_shape, strides=(1, 1), name='conv1',
+                       kernel_initializer=glorot_uniform(seed=None))(model_input)
+    right_in = Conv2D(num_hrc, filter_shape, strides=(1, 1), name='conv2',
+                      kernel_initializer=glorot_uniform(seed=None))(model_input)
+
+    # make sum layer
+    sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
+
+    multiply_layer = multiply([left_in, right_in])
+
+    # full_reich = unit1_multiply
+
+    # combine all the correlators
+    # conv_x_size = int(x_layer2.shape[2])
+    conv_x_size = 1
+    combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
+                   kernel_initializer=glorot_uniform(seed=None))(multiply_layer)
+
+    if sum_over_space:
+        sum_reich = sum_layer(combine_corr)
+    else:
+        sum_reich = combine_corr
+
+    # Create model
+    model = Model(inputs=model_input, outputs=sum_reich, name='ReichCorr')
+
+    return model, pad_x, pad_t, learning_rate, batch_size
+
+
 def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_space=True):
     # set the learning rate that works for this model
     learning_rate = 0.001 * 1
@@ -234,6 +275,7 @@ def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_o
     model = Model(inputs=model_input, outputs=sum_reich, name='ReichCorr')
 
     return model, pad_x, pad_t, learning_rate, batch_size
+
 
 
 def load_data_rr(path):

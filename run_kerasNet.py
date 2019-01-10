@@ -9,8 +9,8 @@ import tensorflow as tf
 
 # define the input path
 # path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
-# path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_1000Hz_005devFrac.mat'
-path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_40scenes_1s_2traces_355phi_1000Hz_005devFrac.mat'
+path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_1000Hz_005devFrac.mat'
+# path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_40scenes_1s_2traces_355phi_1000Hz_005devFrac.mat'
 # path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_100scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
 # path = 'C:\\CDocuments\\python\\nn_RigidRot\\NaturalImages\\xtPlot_natImageCombinedFilteredContrast_421scenes_2s_10traces_355phi_100Hz_005devFrac.mat'
 
@@ -36,7 +36,8 @@ sum_over_space = False
 # model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(31, 11), num_filter=2, sum_over_space=sum_over_space)
 # model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep(input_shape=(size_t, size_x, n_c), filter_shape=((21, 5), (21, 5)), num_filter=(16, 4))
 # model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(21, 11), num_hrc=1, sum_over_space=sum_over_space)
-model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_sep(input_shape=(size_t, size_x, n_c), filter_shape=(41, 21), num_hrc=1, sum_over_space=sum_over_space)
+# model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_sep(input_shape=(size_t, size_x, n_c), filter_shape=(41, 21), num_hrc=1, sum_over_space=sum_over_space)
+model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_no_flip(input_shape=(size_t, size_x, n_c), filter_shape=(101, 21), num_hrc=4, sum_over_space=sum_over_space)
 
 # format y data to fit with output
 if sum_over_space:
@@ -66,7 +67,7 @@ y_test = y_test/np.std(y_test, axis=(1, 2), keepdims=True)
 t = time.time()
 adamOpt = optimizers.Adam(lr=learning_rate)
 model.compile(optimizer=adamOpt, loss='mean_squared_error', metrics=[md.r2])
-hist = model.fit(x_train, y_train, verbose=2, epochs=2, batch_size=batch_size, validation_data=(x_dev, y_dev))
+hist = model.fit(x_train, y_train, verbose=2, epochs=10, batch_size=batch_size, validation_data=(x_dev, y_dev))
 elapsed = time.time() - t
 
 # grab the loss and R2 over time
