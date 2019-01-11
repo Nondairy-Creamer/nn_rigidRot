@@ -6,6 +6,7 @@ import tensorflow.keras.backend as K
 import h5py as h
 import numpy as np
 from tensorflow.keras.layers import *
+import scipy.io as sio
 
 
 def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
@@ -53,6 +54,67 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
 
     return model, pad_x, pad_t, learning_rate, batch_size
 
+
+def ln_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
+    learning_rate = 0.001*1
+    batch_size = np.power(2, 5)
+
+    # Define the input as a tensor with shape input_shape
+    image_in = Input(input_shape)
+
+    pad_x = int((filter_shape[1] - 1) / 2)
+    pad_t = int((filter_shape[0] - 1) / 2)
+
+    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1', kernel_initializer=glorot_uniform(seed=None), activation='relu')(image_in)
+
+    # make sum layer
+    sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
+
+    # conv_x_size = int(x_layer2.shape[2])
+    conv_x_size = 1
+    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None))(conv1)
+
+    if sum_over_space:
+        averaged_space = sum_layer(combine_filters)
+    else:
+        averaged_space = combine_filters
+
+    # Create model
+    model = Model(inputs=image_in, outputs=averaged_space, name='SimpleMotion')
+
+    return model, pad_x, pad_t, learning_rate, batch_size
+
+def ln_model_no_flip_deep(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
+    learning_rate = 0.001*1
+    batch_size = np.power(2, 5)
+
+    # Define the input as a tensor with shape input_shape
+    image_in = Input(input_shape)
+
+    pad_x = int((filter_shape[1] - 1) / 2) + 2 + 2 + 2
+    pad_t = int((filter_shape[0] - 1) / 2) + 2 + 2 + 2
+
+    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1', kernel_initializer=glorot_uniform(seed=None), activation='relu')(image_in)
+    conv2 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None), activation='relu')(conv1)
+    conv3 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv3', kernel_initializer=glorot_uniform(seed=None), activation='relu')(conv2)
+    conv4 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv4', kernel_initializer=glorot_uniform(seed=None), activation='relu')(conv3)
+
+    # make sum layer
+    sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
+
+    # conv_x_size = int(x_layer2.shape[2])
+    conv_x_size = 1
+    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='combine', kernel_initializer=glorot_uniform(seed=None))(conv4)
+
+    if sum_over_space:
+        averaged_space = sum_layer(combine_filters)
+    else:
+        averaged_space = combine_filters
+
+    # Create model
+    model = Model(inputs=image_in, outputs=averaged_space, name='SimpleMotion')
+
+    return model, pad_x, pad_t, learning_rate, batch_size
 
 def ln_model_deep(input_shape=(11, 9, 1), filter_shape=((21, 5), (21, 5)), num_filter=(4, 1)):
     learning_rate = 0.001*1
@@ -176,8 +238,8 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
 
 def hrc_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_space=True):
     # set the learning rate that works for this model
-    learning_rate = 0.001 * .01
-    batch_size = np.power(2, 3)
+    learning_rate = 0.001 * 1
+    batch_size = np.power(2, 6)
 
     # output the amount that this model will reduce the space and time variable by
     pad_x = int((filter_shape[1] - 1) / 2)
@@ -277,29 +339,31 @@ def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_o
     return model, pad_x, pad_t, learning_rate, batch_size
 
 
-
 def load_data_rr(path):
     mat_contents = h.File(path, 'r')
 
-    trainX = np.float32(mat_contents['trainX'].value)
-    trainY = np.float32(mat_contents['trainY'].value)
-    devX = np.float32(mat_contents['devX'].value)
-    devY = np.float32(mat_contents['devY'].value)
-    testX = np.float32(mat_contents['testX'].value)
-    testY = np.float32(mat_contents['testY'].value)
+    train_in = mat_contents['train_in'][:]
+    train_out = mat_contents['train_out'][:]
+    dev_in = mat_contents['dev_in'][:]
+    dev_out = mat_contents['dev_out'][:]
+    test_in = mat_contents['test_in'][:]
+    test_out = mat_contents['test_out'][:]
 
-    trainX = np.expand_dims(trainX, axis=3)
-    devX = np.expand_dims(devX, axis=3)
-    testX = np.expand_dims(testX, axis=3)
+    sample_freq = mat_contents['sampleFreq'][:]
+    phase_step = mat_contents['phaseStep'][:]
 
-    trainY = np.expand_dims(trainY, axis=2)
-    trainY = np.expand_dims(trainY, axis=3)
-    devY = np.expand_dims(devY, axis=2)
-    devY = np.expand_dims(devY, axis=3)
-    testY = np.expand_dims(testY, axis=2)
-    testY = np.expand_dims(testY, axis=3)
+    train_in = np.expand_dims(train_in, axis=3)
+    dev_in = np.expand_dims(dev_in, axis=3)
+    test_in = np.expand_dims(test_in, axis=3)
 
-    return trainX, trainY, devX, devY, testX, testY
+    train_out = np.expand_dims(train_out, axis=2)
+    train_out = np.expand_dims(train_out, axis=3)
+    dev_out = np.expand_dims(dev_out, axis=2)
+    dev_out = np.expand_dims(dev_out, axis=3)
+    test_out = np.expand_dims(test_out, axis=2)
+    test_out = np.expand_dims(test_out, axis=3)
+
+    return train_in, train_out, dev_in, dev_out, test_in, test_out, sample_freq, phase_step
 
 
 def r2(y_true, y_pred):

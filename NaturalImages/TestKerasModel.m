@@ -1,7 +1,12 @@
 function TestKerasModel
     %% load weights and images
-%     images = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat');
-    images = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\xtPlot_natImageCombinedFilteredContrast_40scenes_1s_2traces_355phi_1000Hz_005devFrac.mat');
+%     funcPath = fileparts(mfilename('fullpath'));
+    imageFolder = 'G:\My Drive\data_sets\nn_RigidRot\natural_images';
+    filterFolder = 'G:\My Drive\data_sets\nn_RigidRot\saved_parameters';
+    imageName = 'xtPlot_natImageCombinedFilteredContrast_40scenes_1s_2traces_355phi_1000Hz_005devFrac.mat';
+%     imageName = 'xtPlot_natImageCombinedFilteredContrast_20scenes_2s_10traces_355phi_100Hz_005devFrac.mat.mat';
+    imagePath = fullfile(imageFolder,imageName);
+    images = load(imagePath);
 
 
     
@@ -19,10 +24,12 @@ function TestKerasModel
     
     switch filterType
         case 'gradientDescentSep'
-%             w = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\weightsSep.mat');
-%             w = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\weightsSep_NoSum.mat');
-%             w = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\weightsSep_highRes_noSum.mat');
-            w = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\weights_highRes_longRun_sep.mat');
+            filterPath = fullfile(filterFolder,'weightsSep.mat');
+%             filterPath = fullfile(filterFolder,'weightsSep_NoSum.mat');
+%             filterPath = fullfile(filterFolder,'weightsSep_highRes_noSum.mat');
+%             filterPath = fullfile(filterFolder,'weights_highRes_longRun_sep.mat');
+
+            w = load(filterPath);
             
             weightNames = fieldnames(w);
             weightCell = cell(length(weightNames),1);
@@ -43,8 +50,10 @@ function TestKerasModel
             h{3} = h{3}(1);
             
         case 'gradientDescent'
-            %     w = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\weightsHrc.mat');
-            w = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\weightsPretty.mat');
+%             filterPath = fullfile(filterFolder,'weightsHrc.mat');
+            filterPath = fullfile(filterFolder,'weightsPretty.mat');
+
+            w = load(filterPath);
 
             weightNames = fieldnames(w);
             weightCell = cell(length(weightNames),1);
@@ -69,8 +78,11 @@ function TestKerasModel
             h{3} = 1;
 %             save('randomH','h');
         case 'savedRandom'
-            hIn = load('C:\CDocuments\python\nn_RigidRot\NaturalImages\randomH');
-            h = hIn.h;
+            filterPath = fullfile(filterFolder,'randomH.mat');
+
+            w = load(filterPath);
+            
+            h = w.h;
             
         case 'gaussian'
             h{1} = zeros(filtSizeIn);

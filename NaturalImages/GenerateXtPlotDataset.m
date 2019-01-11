@@ -1,9 +1,79 @@
 function GenerateXtPlotDataset
-    % get natural images
+    %% changeable parameters
+    % total number of scenes in the database
+    % can't be less than 3 so that there is one natural scene saved for the
+    % dev and test sets.
+    folderPath = 'G:\My Drive\data_sets\nn_RigidRot\natural_images';
+    
+    numScenes = 20;
+
+    % where in space to start each plot
+    xEnd = 360; % degrees
+    xStep = 360; % degrees
+    
+    yEnd = -1; % use -1 for max
+    if yEnd == -1
+        yEst = 100;
+    else
+        yEst = yEnd;
+    end
+    yStep = 5; % degrees
+    
+    % how often and how far to sample in space for each plot
+    phaseEnd = 360; % degrees
+    phaseStep = 5; % degrees
+    
+    % how often and how far to sample in time
+    sampleFreq = 100; % Hz
+    totalTime = 1; % s
+    
+    % number of velocity traces to generate for each point in space
+    numTraces = 1;
+    
+    % velocity parameters
+    % this is the halflife of the autocorrelation of turning I measured
+    % from the data in my 2018 paper
+    halfLife = 0.2; % s
+    velStd = 100; % degrees/s
+
+    % fraction of dataset to keep for dev and test sets
+    devFrac = 0.05;
+
+    % make a string to tag the saved file with
+    saveStr = [ 'xtPlot' ...
+                '_ns' num2str(numScenes) ...
+                '_xe' num2str(xEnd) ...
+                '_xs' num2str(xStep) ...
+                '_ye' num2str(yEst) ...
+                '_ys' num2str(yStep) ...
+                '_pe' num2str(phaseEnd) ...
+                '_ps' num2str(phaseStep) ...
+                '_sf' num2str(sampleFreq) ...
+                '_tt' num2str(totalTime) ...
+                '_nt' num2str(numTraces*2) ...
+                '_hl' num2str(halfLife) ...
+                '_vs' num2str(velStd) ...
+                '_df' num2str(devFrac) ...
+                ];
+    saveStr(saveStr=='.') = '-';
+    
+    %% calculate how big this bad boy is going to be
+    scenesMult = numScenes;
+    stepMultX = xEnd/xStep;
+    stepMultY = yEst/yStep-1;
+    phaseMult = phaseEnd/phaseStep;
+    timeMult = sampleFreq*totalTime+1;
+    tracesMult = numTraces*2;
+    
+    imagesMult = scenesMult*stepMultX*stepMultY*phaseMult*timeMult*tracesMult;
+    velMult = timeMult*numScenes*stepMultX*stepMultY*tracesMult;
+    
+    predSize = (imagesMult+velMult)*64/8/2^30;
+    disp(['expected size is ' num2str(predSize) ' gb']);
+    
+    %% get natural images
     inputImages = 'natImageCombinedFilteredContrast';
-%     inputImages = 'natImageCombinedFiltered';
-    folderPath = fileparts(mfilename('fullpath'));
-    dataPath = fullfile(folderPath,inputImages);
+    dataPath = fullfile(folderPath,'xy',inputImages);
     natImage = load(dataPath);
     xyPlot = natImage.xyPlot;
     clear natImage;
@@ -14,10 +84,7 @@ function GenerateXtPlotDataset
     for ss = 1:size(xyPlot,3)
         xyPlot(:,:,ss) = circshift(xyPlot(:,:,ss),[0 floor(rand*size(xyPlot,2)) 0]);
     end
-    
-    numScenes = 40;
-%     numScenes = size(xyPlot,3);
-    
+        
     % radnomly shuffle scene order
     newInd = randperm(numScenes)';
     
@@ -26,17 +93,18 @@ function GenerateXtPlotDataset
     
     xyRes = 360/size(xyPlot,2);
     yLim = xyRes*size(xyPlot,1);
-    sampleFreq = 1000; % Hz
-    totalTime = 1; % s
-    numTraces = 1;
     numTime = sampleFreq*totalTime+1;
     
+    if yEnd == -1
+        yEnd = yLim;
+    end
+    
     %% choose phi
-    phi = (0:2.5:355)';
+    phi = (0:phaseStep:phaseEnd-phaseStep)';
     
     %% get xy points
-    xSamplePoints = (0:360:359)';
-    ySamplePoints = (1:5:yLim)';
+    xSamplePoints = (0:xStep:xEnd-xStep)';
+    ySamplePoints = (1:yStep:yEnd-yStep)';
     
     [xMat,yMat] = meshgrid(xSamplePoints,ySamplePoints);
     
@@ -44,19 +112,20 @@ function GenerateXtPlotDataset
     startY = yMat(:);
     
     %% get velocities
-    % this is the halflife of the autocorrelation of turning I measured
-    % from the data in my 2018 paper
-    halfLife = 0.2;
     tau = halfLife/log(2);
     filterBufferTime = 10*halfLife;
     filterBufferNum = filterBufferTime*sampleFreq;
     
     % assume velocity is normally distributed with a std of 100 in a
     % natural setting. This is based on fly turning rates
-    velStd = 100;
     velNoFilter = velStd*randn(filterBufferNum+numTime,length(startX),numTraces);
 
+    % filter the trace to give it an autocorrelation
     filtT = linspace(0,totalTime+filterBufferTime,filterBufferNum+numTime)';
+    % multiply the filter by a corrective constant so that the final trace
+    % has the correct std of velocity across traces (but not within a
+    % trace). If a trace is particularly short it will look like low
+    % variance due to the autocorrelation
     filter = exp(-filtT/tau)*sqrt(1-exp(-2/(tau*sampleFreq)));
     vel = ifft(fft(filter).*fft(velNoFilter));
     vel = vel(1:numTime,:,:);
@@ -89,10 +158,9 @@ function GenerateXtPlotDataset
     sizeX = size(xtPlot,5);
     
     % fraction of data set to save for dev/test
-    devFrac = 0.05;
-    devNum = round(numScenes*devFrac);
+    devNum = ceil(numScenes*devFrac);
     testNum = devNum;
-    trainNum = round(numScenes-2*devNum);
+    trainNum = numScenes-devNum-testNum;
 
     % get train/dev/train inds
     trainInd = 1:numScenes-2*devNum;
@@ -101,42 +169,35 @@ function GenerateXtPlotDataset
     testInd = numScenes-devNum+1:numScenes;
     
     % define the test and train x/y pairs
-    trainX = xtPlot(:,:,trainInd,:,:);
-    trainX = reshape(trainX,[trainNum*numSamples*numTraces sizeT sizeX]);
+    train_in = xtPlot(:,:,trainInd,:,:);
+    train_in = reshape(train_in,[trainNum*numSamples*numTraces sizeT sizeX]);
     
-    devX = xtPlot(:,:,devInd,:,:);
-    devX = reshape(devX,[devNum*numSamples*numTraces sizeT sizeX]);
+    dev_in = xtPlot(:,:,devInd,:,:);
+    dev_in = reshape(dev_in,[devNum*numSamples*numTraces sizeT sizeX]);
     
-    testX = xtPlot(:,:,testInd,:,:);
-    testX = reshape(testX,[testNum*numSamples*numTraces sizeT sizeX]);
+    test_in = xtPlot(:,:,testInd,:,:);
+    test_in = reshape(test_in,[testNum*numSamples*numTraces sizeT sizeX]);
     
     clear xtPlot;
     
     velShaped = reshape(vel,[numTime numSamples*numTraces])';
     
-    trainY = repmat(velShaped,[trainNum 1]);
-    devY = repmat(velShaped,[devNum 1]);
-    testY = repmat(velShaped,[testNum 1]);
+    train_out = repmat(velShaped,[trainNum 1]);
+    dev_out = repmat(velShaped,[devNum 1]);
+    test_out = repmat(velShaped,[testNum 1]);
     
     clear velShaped;
     
     % matlab transposes for some reason
-    trainX = permute(trainX,[3 2 1]);
-    devX = permute(devX,[3 2 1]);
-    testX = permute(testX,[3 2 1]);
+    train_in = permute(train_in,[3 2 1]);
+    dev_in = permute(dev_in,[3 2 1]);
+    test_in = permute(test_in,[3 2 1]);
     
-    trainY = trainY';
-    devY = devY';
-    testY = testY';
-    
-    totalTimeStr = num2str(totalTime);
-    totalTimeStr = totalTimeStr(totalTimeStr~='.');
-    
-    devFracStr = num2str(devFrac);
-    devFracStr = devFracStr(devFracStr~='.');
+    train_out = train_out';
+    dev_out = dev_out';
+    test_out = test_out';
     
     %% save xtPlots
-    savePath = fullfile(folderPath,['xtPlot_' inputImages '_' num2str(numScenes) 'scenes_' totalTimeStr 's_' num2str(numTraces) 'traces_' num2str(max(phi)) 'phi_' num2str(sampleFreq) 'Hz_' devFracStr 'devFrac' '.mat']);
-    save(savePath,'trainX','trainY','devX','devY','testX','testY','-v7.3');
-%     save(fullfile(folderPath,'xtPlot_test'),'trainX','trainY','devX','devY','testX','testY','-v7.3');
+    savePath = fullfile(folderPath,'xt',saveStr);
+    save(savePath,'train_in','train_out','dev_in','dev_out','test_in','test_out','sampleFreq','phaseStep','-v7.3');
 end
