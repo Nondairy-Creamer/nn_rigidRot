@@ -363,6 +363,8 @@ def load_data_rr(path):
     test_out = np.expand_dims(test_out, axis=2)
     test_out = np.expand_dims(test_out, axis=3)
 
+    mat_contents.close()
+	
     return train_in, train_out, dev_in, dev_out, test_in, test_out, sample_freq, phase_step
 
 
