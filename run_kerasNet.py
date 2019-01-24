@@ -63,9 +63,10 @@ train_in = train_in/np.std(train_in, axis=(1, 2), keepdims=True)
 dev_in = dev_in/np.std(dev_in, axis=(1, 2), keepdims=True)
 test_in = test_in/np.std(test_in, axis=(1, 2), keepdims=True)
 
-train_out = train_out/np.std(train_out, axis=(1, 2), keepdims=True)
-dev_out = dev_out/np.std(dev_out, axis=(1, 2), keepdims=True)
-test_out = test_out/np.std(test_out, axis=(1, 2), keepdims=True)
+# UHHH THIS SEEMS WRONG
+# train_out = train_out/np.std(train_out, axis=(1, 2), keepdims=True)
+# dev_out = dev_out/np.std(dev_out, axis=(1, 2), keepdims=True)
+# test_out = test_out/np.std(test_out, axis=(1, 2), keepdims=True)
 
 # set up the model and fit it
 t = time.time()
