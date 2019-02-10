@@ -7,11 +7,12 @@ import h5py as h
 import numpy as np
 from tensorflow.keras.layers import *
 import scipy.io as sio
-
+from tensorflow.keras import regularizers
 
 def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*1
     batch_size = np.power(2, 5)
+    reg_val = 0.001
 
     # Define the input as a tensor with shape input_shape
     X_input = Input(input_shape)
@@ -19,7 +20,9 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
     pad_x = int((filter_shape[1] - 1) / 2)
     pad_t = int((filter_shape[0] - 1) / 2)
 
-    input_conv = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1', kernel_initializer=glorot_uniform(seed=None))
+    input_conv = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1',
+                        kernel_initializer=glorot_uniform(seed=None),
+                        kernel_regularizer=regularizers.l1(reg_val))
 
     # left arm
     conv1 = input_conv(X_input)
@@ -42,7 +45,9 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
 
     # conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
-    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None))(subtractedLayer)
+    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2',
+                             kernel_initializer=glorot_uniform(seed=None),
+                             kernel_regularizer=regularizers.l1(reg_val))(subtractedLayer)
 
     if sum_over_space:
         averaged_space = sum_layer(combine_filters)
@@ -58,6 +63,7 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
 def ln_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*1
     batch_size = np.power(2, 5)
+    reg_val = 0.001
 
     # Define the input as a tensor with shape input_shape
     image_in = Input(input_shape)
@@ -65,14 +71,19 @@ def ln_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2,
     pad_x = int((filter_shape[1] - 1) / 2)
     pad_t = int((filter_shape[0] - 1) / 2)
 
-    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1', kernel_initializer=glorot_uniform(seed=None), activation='relu')(image_in)
+    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=regularizers.l1(reg_val))(image_in)
 
     # make sum layer
     sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
 
     # conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
-    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None))(conv1)
+    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2',
+                             kernel_initializer=glorot_uniform(seed=None),
+                             kernel_regularizer=regularizers.l1(reg_val))(conv1)
 
     if sum_over_space:
         averaged_space = sum_layer(combine_filters)
@@ -87,6 +98,7 @@ def ln_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2,
 def ln_model_no_flip_deep(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*1
     batch_size = np.power(2, 5)
+    reg_val = 0.001
 
     # Define the input as a tensor with shape input_shape
     image_in = Input(input_shape)
@@ -94,17 +106,31 @@ def ln_model_no_flip_deep(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filt
     pad_x = int((filter_shape[1] - 1) / 2) + 2 + 2 + 2
     pad_t = int((filter_shape[0] - 1) / 2) + 2 + 2 + 2
 
-    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1', kernel_initializer=glorot_uniform(seed=None), activation='relu')(image_in)
-    conv2 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv2', kernel_initializer=glorot_uniform(seed=None), activation='relu')(conv1)
-    conv3 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv3', kernel_initializer=glorot_uniform(seed=None), activation='relu')(conv2)
-    conv4 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv4', kernel_initializer=glorot_uniform(seed=None), activation='relu')(conv3)
+    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=regularizers.l1(reg_val))(image_in)
+    conv2 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv2',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=regularizers.l1(reg_val))(conv1)
+    conv3 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv3',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=regularizers.l1(reg_val))(conv2)
+    conv4 = Conv2D(num_filter, (5, 5), strides=(1, 1), name='conv4',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=regularizers.l1(reg_val))(conv3)
 
     # make sum layer
     sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
 
     # conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
-    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='combine', kernel_initializer=glorot_uniform(seed=None))(conv4)
+    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='combine',
+                             kernel_initializer=glorot_uniform(seed=None),
+                             kernel_regularizer=regularizers.l1(reg_val))(conv4)
 
     if sum_over_space:
         averaged_space = sum_layer(combine_filters)
@@ -119,6 +145,8 @@ def ln_model_no_flip_deep(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filt
 def ln_model_deep(input_shape=(11, 9, 1), filter_shape=((21, 5), (21, 5)), num_filter=(4, 1)):
     learning_rate = 0.001*1
     batch_size = np.power(2, 5)
+    reg_val = 0.001
+
     # ln model of the structure
     # conv, relu, conv, relu, subtract off mirror symmetric subunits, linear combination
 
@@ -132,9 +160,11 @@ def ln_model_deep(input_shape=(11, 9, 1), filter_shape=((21, 5), (21, 5)), num_f
     # define the initial convolution without inputs so we can reuse it. We want to train the same weights for the mirror
     # symmetric units
     conv_1 = Conv2D(num_filter[0], filter_shape[0], strides=(1, 1), name='conv1',
-                        kernel_initializer=glorot_uniform(seed=None))
+                        kernel_initializer=glorot_uniform(seed=None),
+                        kernel_regularizer=regularizers.l1(reg_val))
     conv_2 = Conv2D(num_filter[1], filter_shape[1], strides=(1, 1), name='conv2',
-                        kernel_initializer=glorot_uniform(seed=None))
+                        kernel_initializer=glorot_uniform(seed=None),
+                        kernel_regularizer=regularizers.l1(reg_val))
 
     # make reversal layers to flip convolutions
     reverse_layer = Lambda(lambda lam: K.reverse(lam, axes=2))
@@ -171,7 +201,8 @@ def ln_model_deep(input_shape=(11, 9, 1), filter_shape=((21, 5), (21, 5)), num_f
     #conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
     combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
-               kernel_initializer=glorot_uniform(seed=None))(x_layer2)
+               kernel_initializer=glorot_uniform(seed=None),
+               kernel_regularizer=regularizers.l1(reg_val))(x_layer2)
 
     model_sum = sum_layer(combine_filters)
 
@@ -185,6 +216,7 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
     # set the learning rate that works for this model
     learning_rate = 0.001 * 1
     batch_size = np.power(2, 5)
+    reg_val = 0.001
 
     # output the amount that this model will reduce the space and time variable by
     pad_x = int((filter_shape[1] - 1) / 2)
@@ -194,9 +226,11 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
     model_input = Input(input_shape)
 
     left_in = Conv2D(num_hrc, filter_shape, strides=(1, 1), name='conv1',
-                       kernel_initializer=glorot_uniform(seed=None))
+                       kernel_initializer=glorot_uniform(seed=None),
+                       kernel_regularizer=regularizers.l1(reg_val))
     right_in = Conv2D(num_hrc, filter_shape, strides=(1, 1), name='conv2',
-                      kernel_initializer=glorot_uniform(seed=None))
+                      kernel_initializer=glorot_uniform(seed=None),
+                      kernel_regularizer=regularizers.l1(reg_val))
 
     # make reversal layers to flip convolutions
     reverse_layer = Lambda(lambda lam: K.reverse(lam, axes=2))
@@ -223,7 +257,8 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
     # conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
     combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
-                   kernel_initializer=glorot_uniform(seed=None))(full_reich)
+                   kernel_initializer=glorot_uniform(seed=None),
+                   kernel_regularizer=regularizers.l1(reg_val))(full_reich)
 
     if sum_over_space:
         sum_reich = sum_layer(combine_corr)
@@ -240,6 +275,7 @@ def hrc_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, s
     # set the learning rate that works for this model
     learning_rate = 0.001 * 1
     batch_size = np.power(2, 6)
+    reg_val = 0.001
 
     # output the amount that this model will reduce the space and time variable by
     pad_x = int((filter_shape[1] - 1) / 2)
@@ -249,9 +285,11 @@ def hrc_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, s
     model_input = Input(input_shape)
 
     left_in = Conv2D(num_hrc, filter_shape, strides=(1, 1), name='conv1',
-                       kernel_initializer=glorot_uniform(seed=None))(model_input)
+                     kernel_initializer=glorot_uniform(seed=None),
+                     kernel_regularizer=regularizers.l1(reg_val))(model_input)
     right_in = Conv2D(num_hrc, filter_shape, strides=(1, 1), name='conv2',
-                      kernel_initializer=glorot_uniform(seed=None))(model_input)
+                      kernel_initializer=glorot_uniform(seed=None),
+                      kernel_regularizer=regularizers.l1(reg_val))(model_input)
 
     # make sum layer
     sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
@@ -264,7 +302,8 @@ def hrc_model_no_flip(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, s
     # conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
     combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
-                   kernel_initializer=glorot_uniform(seed=None))(multiply_layer)
+                          kernel_initializer=glorot_uniform(seed=None),
+                          kernel_regularizer=regularizers.l1(reg_val))(multiply_layer)
 
     if sum_over_space:
         sum_reich = sum_layer(combine_corr)
@@ -281,6 +320,7 @@ def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_o
     # set the learning rate that works for this model
     learning_rate = 0.001 * 1
     batch_size = np.power(2, 5)
+    reg_val = 0.001
 
     # output the amount that this model will reduce the space and time variable by
     pad_x = int((filter_shape[1] - 1) / 2)
@@ -290,16 +330,20 @@ def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_o
     model_input = Input(input_shape)
 
     left_in_t = Conv2D(num_hrc, (filter_shape[0], 1), strides=(1, 1), name='conv1t', use_bias=False,
-                       kernel_initializer=glorot_uniform(seed=None))
+                       kernel_initializer=glorot_uniform(seed=None),
+                       kernel_regularizer=regularizers.l1(reg_val))
 
     left_in_x = Conv2D(num_hrc, (1, filter_shape[1]), strides=(1, 1), name='conv1x',
-                     kernel_initializer=glorot_uniform(seed=None))
+                     kernel_initializer=glorot_uniform(seed=None),
+                     kernel_regularizer=regularizers.l1(reg_val))
 
     right_in_t = Conv2D(num_hrc, (filter_shape[0], 1), strides=(1, 1), name='conv2t', use_bias=False,
-                      kernel_initializer=glorot_uniform(seed=None))
+                      kernel_initializer=glorot_uniform(seed=None),
+                      kernel_regularizer=regularizers.l1(reg_val))
 
     right_in_x = Conv2D(num_hrc, (1, filter_shape[1]), strides=(1, 1), name='conv2x',
-                      kernel_initializer=glorot_uniform(seed=None))
+                      kernel_initializer=glorot_uniform(seed=None),
+                      kernel_regularizer=regularizers.l1(reg_val))
 
     # make reversal layers to flip convolutions
     reverse_layer = Lambda(lambda lam: K.reverse(lam, axes=2))
@@ -326,7 +370,8 @@ def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_o
     # conv_x_size = int(x_layer2.shape[2])
     conv_x_size = 1
     combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
-                   kernel_initializer=glorot_uniform(seed=None))(full_reich)
+                   kernel_initializer=glorot_uniform(seed=None),
+                   kernel_regularizer=regularizers.l1(reg_val))(full_reich)
 
     if sum_over_space:
         sum_reich = sum_layer(combine_corr)
