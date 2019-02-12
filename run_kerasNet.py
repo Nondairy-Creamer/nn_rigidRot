@@ -12,8 +12,8 @@ import tensorflow as tf
 data_set_folder = 'G:\\My Drive\\data_sets\\nn_RigidRot'
 
 # data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf500_tt1_nt2_hl0-2_vs100_df0-05.mat'
-data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf1000_tt1_nt2_hl0-2_vs100_df0-05.mat'
-# data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt2_hl0-2_vs100_df0-05.mat'
+# data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf1000_tt1_nt2_hl0-2_vs100_df0-05.mat'
+data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt2_hl0-2_vs100_df0-05.mat'
 
 path = data_set_folder + '\\natural_images\\xt\\' + data_set_name
 
@@ -22,7 +22,7 @@ train_in, train_out, dev_in, dev_out, test_in, test_out, sample_freq, phase_step
 
 # get sample rate of dataset
 
-filter_time = 0.1  # s
+filter_time = 0.2  # s
 filter_space = 100  # degrees
 
 filter_indicies_t = int(np.ceil(filter_time*sample_freq)+1)
@@ -34,14 +34,10 @@ assert(np.mod(filter_indicies_x, 2) == 1)
 
 # intiialize model
 m, size_t, size_x, n_c = train_in.shape
-sum_over_space = False
-# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=2, sum_over_space=sum_over_space)
-# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep(input_shape=(size_t, size_x, n_c), filter_shape=((filter_indicies_t, filter_indicies_x), (filter_indicies_t, filter_indicies_x)), num_filter=(16, 4))
-# model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_hrc=1, sum_over_space=sum_over_space)
-# model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_sep(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_hrc=1, sum_over_space=sum_over_space)
-# model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_no_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_hrc=4, sum_over_space=sum_over_space)
-model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_no_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=4, sum_over_space=sum_over_space)
-# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_no_flip_deep(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=2, sum_over_space=sum_over_space)
+sum_over_space = True
+# model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_hrc=4, sum_over_space=sum_over_space)
+# model, pad_x, pad_t, learning_rate, batch_size = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=4, sum_over_space=sum_over_space)
+model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=4, sum_over_space=sum_over_space)
 
 # format y data to fit with output
 if sum_over_space:
@@ -63,16 +59,11 @@ train_in = train_in/np.std(train_in, axis=(1, 2), keepdims=True)
 dev_in = dev_in/np.std(dev_in, axis=(1, 2), keepdims=True)
 test_in = test_in/np.std(test_in, axis=(1, 2), keepdims=True)
 
-# UHHH THIS SEEMS WRONG
-# train_out = train_out/np.std(train_out, axis=(1, 2), keepdims=True)
-# dev_out = dev_out/np.std(dev_out, axis=(1, 2), keepdims=True)
-# test_out = test_out/np.std(test_out, axis=(1, 2), keepdims=True)
-
 # set up the model and fit it
 t = time.time()
 adamOpt = optimizers.Adam(lr=learning_rate)
 model.compile(optimizer=adamOpt, loss='mean_squared_error', metrics=[md.r2])
-hist = model.fit(train_in, train_out, verbose=2, epochs=50, batch_size=batch_size, validation_data=(dev_in, dev_out))
+hist = model.fit(train_in, train_out, verbose=2, epochs=1000, batch_size=batch_size, validation_data=(dev_in, dev_out))
 elapsed = time.time() - t
 
 # grab the loss and R2 over time

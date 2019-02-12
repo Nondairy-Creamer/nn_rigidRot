@@ -305,5 +305,5 @@ function pred = HrcModel(img,h,b)
     arm3 = conv2(img,fliplr(h{1}),'valid')+b{1};
     arm4 = conv2(img,fliplr(h{2}),'valid')+b{2};
     
-    pred = (arm1.*arm2-arm3.*arm4)*h{3}+b{3};
+    pred = (arm1.*arm2)*h{3}+b{3};
 end
