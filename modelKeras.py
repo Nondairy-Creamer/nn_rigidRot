@@ -12,8 +12,8 @@ from tensorflow.keras import regularizers
 
 def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*1
-    batch_size = np.power(2, 2)
-    reg_val = 0.001
+    batch_size = np.power(2, 6)
+    reg_val = 0.1
 
     # Define the input as a tensor with shape input_shape
     image_in = Input(input_shape)
@@ -30,18 +30,18 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
     sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
 
     # conv_x_size = int(x_layer2.shape[2])
-    conv_x_size = 1
+    if sum_over_space:
+        conv_x_size = conv1.get_shape().as_list()[2]
+    else:
+        conv_x_size = 1
+
     combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2',
                              kernel_initializer=glorot_uniform(seed=None),
-                             kernel_regularizer=regularizers.l1(reg_val))(conv1)
-
-    if sum_over_space:
-        averaged_space = sum_layer(combine_filters)
-    else:
-        averaged_space = combine_filters
+                             kernel_regularizer=regularizers.l1(reg_val),
+                             use_bias=False)(conv1)
 
     # Create model
-    model = Model(inputs=image_in, outputs=averaged_space, name='SimpleMotion')
+    model = Model(inputs=image_in, outputs=combine_filters, name='ln_model')
 
     return model, pad_x, pad_t, learning_rate, batch_size
 
@@ -49,7 +49,7 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
 def ln_model_deep(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*1
     batch_size = np.power(2, 5)
-    reg_val = 0.001
+    reg_val = 0.1
 
     # Define the input as a tensor with shape input_shape
     image_in = Input(input_shape)
@@ -77,19 +77,18 @@ def ln_model_deep(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, su
     # make sum layer
     sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
 
-    # conv_x_size = int(x_layer2.shape[2])
-    conv_x_size = 1
+    if sum_over_space:
+        conv_x_size = conv4.get_shape().as_list()[2]
+    else:
+        conv_x_size = 1
+
     combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='combine',
                              kernel_initializer=glorot_uniform(seed=None),
-                             kernel_regularizer=regularizers.l1(reg_val))(conv4)
-
-    if sum_over_space:
-        averaged_space = sum_layer(combine_filters)
-    else:
-        averaged_space = combine_filters
+                             kernel_regularizer=regularizers.l1(reg_val),
+                             use_bias=False)(conv4)
 
     # Create model
-    model = Model(inputs=image_in, outputs=averaged_space, name='SimpleMotion')
+    model = Model(inputs=image_in, outputs=combine_filters, name='ln_model_deep')
 
     return model, pad_x, pad_t, learning_rate, batch_size
 
@@ -98,7 +97,7 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
     # set the learning rate that works for this model
     learning_rate = 0.001 * 1
     batch_size = np.power(2, 6)
-    reg_val = 0.001
+    reg_val = 0.1
 
     # output the amount that this model will reduce the space and time variable by
     pad_x = int((filter_shape[1] - 1) / 2)
@@ -124,19 +123,73 @@ def hrc_model(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_
     # full_reich = unit1_multiply
 
     # combine all the correlators
-    # conv_x_size = int(x_layer2.shape[2])
-    conv_x_size = 1
+    if sum_over_space:
+        conv_x_size = multiply_layer.get_shape().as_list()[2]
+    else:
+        conv_x_size = 1
+
     combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
                           kernel_initializer=glorot_uniform(seed=None),
-                          kernel_regularizer=regularizers.l1(reg_val))(multiply_layer)
-
-    if sum_over_space:
-        sum_reich = sum_layer(combine_corr)
-    else:
-        sum_reich = combine_corr
+                          kernel_regularizer=regularizers.l1(reg_val),
+                          use_bias=False)(multiply_layer)
 
     # Create model
-    model = Model(inputs=model_input, outputs=sum_reich, name='ReichCorr')
+    model = Model(inputs=model_input, outputs=combine_corr, name='hrc_model')
+
+    return model, pad_x, pad_t, learning_rate, batch_size
+
+
+def hrc_model_sep(input_shape=(11, 9, 1), filter_shape=(21, 2), num_hrc=1, sum_over_space=True):
+    # set the learning rate that works for this model
+    learning_rate = 0.001 * 1
+    batch_size = np.power(2, 6)
+    reg_val = 0.1
+
+    # output the amount that this model will reduce the space and time variable by
+    pad_x = int((filter_shape[1] - 1) / 2)
+    pad_t = int((filter_shape[0] - 1) / 2)
+
+    # Define the input as a tensor with shape input_shape
+    model_input = Input(input_shape)
+
+    left_in_t = Conv2D(num_hrc, (filter_shape[0], 1), strides=(1, 1), name='conv1_t',
+                     kernel_initializer=glorot_uniform(seed=None),
+                     kernel_regularizer=regularizers.l1(reg_val),
+                     use_bias=False)(model_input)
+    left_in_xt = Conv2D(num_hrc, (1, filter_shape[1]), strides=(1, 1), name='conv1_xt',
+                     kernel_initializer=glorot_uniform(seed=None),
+                     kernel_regularizer=regularizers.l1(reg_val),
+                     use_bias=False)(left_in_t)
+
+    right_in_t = Conv2D(num_hrc, (filter_shape[0], 1), strides=(1, 1), name='conv2_t',
+                      kernel_initializer=glorot_uniform(seed=None),
+                      kernel_regularizer=regularizers.l1(reg_val),
+                      use_bias=False)(model_input)
+    right_in_xt = Conv2D(num_hrc, (1, filter_shape[1]), strides=(1, 1), name='conv2_xt',
+                      kernel_initializer=glorot_uniform(seed=None),
+                      kernel_regularizer=regularizers.l1(reg_val),
+                      use_bias=False)(right_in_t)
+
+    # make sum layer
+    sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
+
+    multiply_layer = multiply([left_in_xt, right_in_xt])
+
+    # full_reich = unit1_multiply
+
+    # combine all the correlators
+    if sum_over_space:
+        conv_x_size = multiply_layer.get_shape().as_list()[2]
+    else:
+        conv_x_size = 1
+
+    combine_corr = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='x_out',
+                          kernel_initializer=glorot_uniform(seed=None),
+                          kernel_regularizer=regularizers.l1(reg_val),
+                          use_bias=False)(multiply_layer)
+
+    # Create model
+    model = Model(inputs=model_input, outputs=combine_corr, name='hrc_model_sep')
 
     return model, pad_x, pad_t, learning_rate, batch_size
 
