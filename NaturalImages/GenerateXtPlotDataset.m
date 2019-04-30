@@ -25,7 +25,7 @@ function GenerateXtPlotDataset
     
     % how often and how far to sample in time
     sampleFreq = 100; % Hz
-    totalTime = 1; % s
+    totalTime = 4; % s
     
     % number of velocity traces to generate for each point in space
     numTraces = 1;
