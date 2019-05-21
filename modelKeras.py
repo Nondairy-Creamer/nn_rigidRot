@@ -48,6 +48,47 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
     return model, pad_x, pad_t, learning_rate, batch_size
 
 
+def ln_model_medulla(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
+    learning_rate = 0.001*100
+    batch_size = np.power(2, 6)
+    reg_val = 1
+
+    # Define the input as a tensor with shape input_shape
+    image_in = Input(input_shape)
+
+    pad_x = int((filter_shape[1] - 1))
+    pad_t = int((filter_shape[0] - 1))*2
+
+    conv1 = Conv2D(4, [filter_shape[0], 1], strides=(1, 1), name='conv1_1',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=l1_reg_sqrt)(image_in)
+
+    conv1 = Conv2D(num_filter, filter_shape, strides=(1, 1), name='conv1_2',
+                   kernel_initializer=glorot_uniform(seed=None),
+                   activation='relu',
+                   kernel_regularizer=l1_reg_sqrt)(conv1)
+
+    # make sum layer
+    sum_layer = Lambda(lambda lam: K.sum(lam, axis=2, keepdims=True))
+
+    # conv_x_size = int(x_layer2.shape[2])
+    if sum_over_space:
+        conv_x_size = conv1.get_shape().as_list()[2]
+    else:
+        conv_x_size = 1
+
+    combine_filters = Conv2D(1, (1, conv_x_size), strides=(1, 1), name='conv2',
+                             kernel_initializer=glorot_uniform(seed=None),
+                             kernel_regularizer=l1_reg_sqrt,
+                             use_bias=False)(conv1)
+
+    # Create model
+    model = Model(inputs=image_in, outputs=combine_filters, name='ln_model_medulla')
+
+    return model, pad_x, pad_t, learning_rate, batch_size
+
+
 def ln_model_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
     learning_rate = 0.001*100
     batch_size = np.power(2, 6)

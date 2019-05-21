@@ -25,11 +25,11 @@ path = data_set_folder + '\\natural_images\\xt\\' + data_set_name
 train_in_full, train_out_full, dev_in_full, dev_out_full, test_in_full, test_out_full, sample_freq, phase_step = md.load_data_rr(path)
 
 # parameters of filters
-num_runs = 50
-filter_time = 0.1  # s
+num_runs = 8
+filter_time = 0.05  # s
 filter_space_list = [15]  # degrees
 sum_over_space_list = [False]
-num_filt_list = [8]
+num_filt_list = [2]
 batch_size_list = [np.power(2, 6)]
 learning_rate_list = [0.1]
 epoch_list = [500]
@@ -63,8 +63,9 @@ for run_number_index, run_number in enumerate(range(num_runs)):
 
                             # model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_hrc=num_filt, sum_over_space=sum_over_space)
                             # model, pad_x, pad_t, learning_rate, batch_size = md.hrc_model_sep(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_hrc=num_filt, sum_over_space=sum_over_space)
-                            model, pad_x, pad_t, _, _ = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=num_filt, sum_over_space=sum_over_space)
-                            # model, pad_x, pad_t, _, _ = md.ln_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=num_filt, sum_over_space=sum_over_space)
+                            # model, pad_x, pad_t, _, _ = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=num_filt, sum_over_space=sum_over_space)
+                            # model, pad_x, pad_t, _, _ = md.ln_model_medulla(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=num_filt, sum_over_space=sum_over_space)
+                            model, pad_x, pad_t, _, _ = md.ln_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=num_filt, sum_over_space=sum_over_space)
                             # model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep_2(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=num_filt, sum_over_space=sum_over_space)
                             # model, pad_x, pad_t, learning_rate, batch_size = md.ln_model_deep(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=(4, 4), sum_over_space=sum_over_space)
 
