@@ -2,7 +2,7 @@ function TestKerasModel
     %% load weights and images
     xtPlotFolder = 'G:\My Drive\data_sets\nn_RigidRot\natural_images\xt';
     filterFolder = 'G:\My Drive\data_sets\nn_RigidRot\saved_parameters';
-    xtPlotName = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt2_hl0-2_vs100_df0-05.mat';
+    xtPlotName = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf500_tt1_nt2_hl0-2_vs100_df0-05.mat';
     xtPlotPath = fullfile(xtPlotFolder,xtPlotName);
     images = load(xtPlotPath);
 
@@ -11,7 +11,7 @@ function TestKerasModel
     useOneTime = false;
     
     %% choose filter type to use
-    filterType = 'gradientDescentLn';
+    filterType = 'gradientDescentLnFlip';
     
     filtSizeIn = [21 11];
     
@@ -51,10 +51,11 @@ function TestKerasModel
             h = cellfun(@(x)rot90(x,2),h,'UniformOutput',false);
             
         case 'gradientDescentLn'
-            fileName = 'goodfit0-4_ln_model_4numFilt_FalseSumSpace_0-5filterTime_15filterSpace_100sampleFreq_5phaseStep.mat';
+            fileName = '2019-05-31_18-11-07.972329.mat';
             filterPath = fullfile(filterFolder,fileName);
 
             w = load(filterPath);
+            w = w.param_array{1}.weight_dict;
             wNames = fieldnames(w);
             h = cell(0,1);
             b = cell(0,1);
@@ -82,9 +83,50 @@ function TestKerasModel
                 end
             end
             
-            h{1} = cellfun(@(x)rot90(x,2),h{1},'UniformOutput',false);
-            h{2} = cellfun(@(x)rot90(x,2),h{2},'UniformOutput',false);
+%             h{1} = cellfun(@(x)rot90(x,2),h{1},'UniformOutput',false);
+%             h{2} = cellfun(@(x)rot90(x,2),h{2},'UniformOutput',false);
+        
+        case 'gradientDescentLnFlip'
+            fileName = '2019-05-31_18-11-07.972329.mat';
+            filterPath = fullfile(filterFolder,fileName);
+
+            w = load(filterPath);
+            w = w.param_array{1}.weight_dict;
+            wNames = fieldnames(w);
+            h = cell(0,1);
+            b = cell(0,1);
             
+            hInd = 0;
+            bInd = 0;
+            
+            for nn = 1:length(wNames)
+                theseParams = double(w.(wNames{nn}));
+                if size(theseParams,3) == 1
+                    theseParams = squeeze(theseParams);
+                end
+                
+                if isequal(wNames{nn}(1:6),'weight')
+                    hInd = hInd + 1;
+                    for ff = 1:size(theseParams,3)
+                        h{hInd}{ff} = theseParams(:,:,ff);
+                    end
+                else
+                    bInd = bInd + 1;
+                    
+                    for ff = 1:size(theseParams,2)
+                        b{bInd}{ff} = theseParams(ff);
+                    end
+                end
+            end
+            
+            h{1} = [h{1} cellfun(@fliplr,h{1},'UniformOutput',false)];
+            h{2} = [h{2} cellfun(@(x)-x,h{2},'UniformOutput',false)];
+            
+            b{1} = [b{1} b{1}];
+            
+%             h{1} = cellfun(@(x)rot90(x,2),h{1},'UniformOutput',false);
+%             h{2} = cellfun(@(x)rot90(x,2),h{2},'UniformOutput',false);
+
         case 'newRandom'
             h{1} = randn(filtSizeIn)/10;
             h{2} = randn(filtSizeIn)/10;
@@ -237,6 +279,8 @@ function [pred, respCorr] = LnModel(img,h,b)
         for jj = 1:length(layer1)
             corrMat = corrcoef(layer1{ii}(:),layer1{jj}(:));
             respCorr(ii,jj) = corrMat(2,1);
+            respCorr(ii,jj) = mean(layer1{ii}(:).*layer1{jj}(:))/std(layer1{ii}(:))/std(layer1{jj}(:));
+            respCorr(ii,jj) = mean(layer1{ii}(:).*layer1{jj}(:))/sqrt(mean(layer1{ii}(:).^2))/sqrt(mean(layer1{jj}(:).^2));
         end
     end
     

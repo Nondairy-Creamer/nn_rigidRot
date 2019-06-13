@@ -25,10 +25,14 @@ function GenerateXtPlotDataset
     
     % how often and how far to sample in time
     sampleFreq = 100; % Hz
-    totalTime = 4; % s
+    totalTime = 1; % s
     
     % number of velocity traces to generate for each point in space
     numTraces = 1;
+    
+    % standard devation of gaussian noise (in contrast) to be added to each
+    % xt plot
+    noiseStd = 0;
     
     % velocity parameters
     % this is the halflife of the autocorrelation of turning I measured
@@ -54,6 +58,7 @@ function GenerateXtPlotDataset
                 '_hl' num2str(halfLife) ...
                 '_vs' num2str(velStd) ...
                 '_df' num2str(devFrac) ...
+                '_no' num2str(noiseStd) ...
                 ];
     saveStr(saveStr=='.') = '-';
     
@@ -132,14 +137,15 @@ function GenerateXtPlotDataset
     
     position = cumsum(vel)/sampleFreq;
     position = position-position(1,:,:);
-    
-    % filter with an exponential filter so that the velocity is updated
-    % according to 
 
     
     %% generate xt plots
     xtPlot = MakeXtPlotShiftVel(xyPlot,startX,startY,position,phi);
     clear xyPlot;
+    
+    % add noise
+    noise = randn(size(xtPlot))*noiseStd;
+    xtPlot = xtPlot + noise;
     
     %% randomize dataset and seperate into train/dev/test
     % convert to machine learning convention of having m examples in the
