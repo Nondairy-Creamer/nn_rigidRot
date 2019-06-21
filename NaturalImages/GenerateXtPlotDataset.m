@@ -35,8 +35,10 @@ function GenerateXtPlotDataset
     noiseStd = 0;
     
     % velocity parameters
-    % this is the halflife of the autocorrelation of turning I measured
+    % 0.2 is the halflife of the autocorrelation of turning I measured
     % from the data in my 2018 paper
+    % 100 degrees/s is teh standard devation of the fly turning from that
+    % paper
     halfLife = 0.2; % s
     velStd = 100; % degrees/s
 

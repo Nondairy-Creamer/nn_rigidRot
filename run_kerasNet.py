@@ -1,21 +1,18 @@
 import modelKeras as md
-import matplotlib.pyplot as plt
 import numpy as np
 import time
-from tensorflow.keras import optimizers
-from tensorflow.keras.utils import plot_model
+from keras import optimizers
 import scipy.io as sio
-import tensorflow as tf
 import datetime
 
 # parameters of filters
 no_opponency = False
-num_runs = 40
-# num_runs = 20
+num_runs = 1
+num_runs = 20
 filter_time = 0.2  # s
-filter_time = 0.5
+filter_time = 0.3
 noise_std_list = [0.1]
-noise_std_list = [0.1, 1]
+# noise_std_list = [0.1, 1.0]
 filter_space_list = [15]  # degrees
 sum_over_space_list = [False]
 num_filt_list = [4]
@@ -23,16 +20,18 @@ batch_size_list = [np.power(2, 6)]
 batch_size_list = [np.power(2, 8)]
 learning_rate_list = [0.1]
 learning_rate_list = [0.1]
-epoch_list = [400]
-# epoch_list = [500]
-normalize_list = [False]
+epoch_list = [200]
+epoch_list = [25]
+normalize_list = [True]
 normalize_list = [False, True]
 
 # define the input path
 # data set location
 data_set_folder = 'G:\\My Drive\\data_sets\\nn_RigidRot'
 
-data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt2_hl0-2_vs100_df0-05.mat'
+# data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt2_hl0-2_vs100_df0-05.mat'
+# data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt2_hl0-1_vs100_df0-05_no0.mat'
+data_set_name = 'xtPlot_ns20_xe360_xs360_ye100_ys5_pe360_ps5_sf100_tt1_nt16_hl0-2_vs100_df0-05_no0.mat'
 
 path = data_set_folder + '\\natural_images\\xt\\' + data_set_name
 
@@ -83,6 +82,7 @@ for run_number in range(num_runs):
 
 total_runs = len(param_dict)
 
+# fit all the models
 for p_ind, p in enumerate(param_dict):
     run_begin = time.time()
 
@@ -91,9 +91,10 @@ for p_ind, p in enumerate(param_dict):
 
     # intiialize model
     # model, pad_x, pad_t = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
-    model, pad_x, pad_t = md.ln_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
-    # model, pad_x, pad_t = md.conductance_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
-    # model, pad_x, pad_t = md.conductance_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
+    # model, pad_x, pad_t = md.ln_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
+    # model, pad_x, pad_t = md.conductance_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'], fit_reversal=False)
+    # model, pad_x, pad_t = md.conductance_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'], fit_reversal=False)
+    model, pad_x, pad_t = md.LNLN_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
 
     param_dict[p_ind]['model_name'] = model.name
 
