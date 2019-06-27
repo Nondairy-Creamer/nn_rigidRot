@@ -1,4 +1,7 @@
 function AnalyzeRigidRotOutput
+    % this function will load in models that were fit to predict velocity
+    % from rotating natural scenes.
+
     %% set images and params folder locations
     xtPlotFolder = 'G:\My Drive\data_sets\nn_RigidRot\natural_images\xt';
     filterFolder = 'G:\My Drive\data_sets\nn_RigidRot\saved_parameters\';
@@ -7,13 +10,14 @@ function AnalyzeRigidRotOutput
     
     %% get the fit outputs. Default to the last one generated
     param_list = dir([filterFolder '*.mat']);
-    params = load(fullfile(filterFolder,param_list(end).name));
-%     params = load(fullfile(filterFolder,'saved\cond_4filt_vNoise_vNorm_big.mat'));
-%     params = load(fullfile(filterFolder,'saved\ln_4filt_vNoise_vNorm_big.mat'));
+%     params = load(fullfile(filterFolder,param_list(end).name));
+    params = load(fullfile(filterFolder,'saved\ln_lnln_cond_vNoise_vNorm.mat'));
     params = params.param_dict;
     
     %% get the model you want to analyze
-%     [chosen_model, model_ind] = GetModel(params,'max','normalize_std',false,'noise_std',0.1);
+%     [chosen_model, model_ind] = GetModel(params,'max','model_name','ln_model_flip');
+%     [chosen_model, model_ind] = GetModel(params,'max','model_name','lnln_model_flip');
+%     [chosen_model, model_ind] = GetModel(params,'max','model_name','conductance_model_flip');
     [chosen_model, model_ind] = GetModel(params,'max');
     chosen_model = chosen_model{1};
     
@@ -46,94 +50,96 @@ function AnalyzeRigidRotOutput
     % get the parameters out based on what model was run
     switch chosen_model.model_name
         case 'ln_model'
+            % h are filters
+            % b are offsets
+            % m are scalar weights
             h = squeeze(chosen_model.weights{1});
-            m = chosen_model.weights{end}(:);
-            b = chosen_model.biases{1}(:)';
+            b1 = zeros(size(h,2), size(h,3));
+            m1 = ones(size(h,2), size(h,3));
+            
+            m2 = chosen_model.weights{end}(:);
+            b2 = chosen_model.biases{1}(:)';
 
             h = rot90(h,2);
 
-            model_structure = @LnModel;
+            model_structure = @ln_model;
 
         case 'ln_model_flip'
             h = squeeze(chosen_model.weights{1});
-            m = chosen_model.weights{end}(:);
-            b = chosen_model.biases{1}(:)';
+            b1 = zeros(size(h,2), size(h,3));
+            m1 = ones(size(h,2), size(h,3));
+            
+            m2 = chosen_model.weights{end}(:);
+            b2 = chosen_model.biases{1}(:);
 
             h = rot90(h,2);
 
-            [h,b,m] = FlipFilters(h,b,m);
+            [h,b1,m1,b2,m2] = FlipFilters(h,b1,m1,b2,m2);
 
-            model_structure = @LnModel;
+            model_structure = @ln_model;
 
         case 'conductance_model'
-            % load in backwards so that when we rotate 180 degrees its
-            % in the correct orientation
             for ff = 1:chosen_model.num_filt
                 h(:,:,ff) = [chosen_model.weights{1}(:,:,:,ff) chosen_model.weights{2}(:,:,:,ff) chosen_model.weights{3}(:,:,:,ff)];
             end
 
             h = flipud(h);
 
-            m = chosen_model.weights{end}(:);
-
             for bb = 1:3
-                b(bb, :) = chosen_model.biases{bb};
+                b1(bb, :) = chosen_model.biases{bb};
             end
+            
+            m2 = chosen_model.weights{end}(:);
 
-            model_structure = @ConductanceModel;
+            model_structure = @conductance_model;
 
         case 'conductance_model_flip'
-            % load in backwards so that when we rotate 180 degrees its
-            % in the correct orientation
             for ff = 1:size(chosen_model.weights{1},4)
                 h(:,:,ff) = [chosen_model.weights{1}(:,:,:,ff) chosen_model.weights{2}(:,:,:,ff) chosen_model.weights{3}(:,:,:,ff)];
             end
 
             h = flipud(h);
 
-            m = chosen_model.weights{end}(:);
+            if chosen_model.fit_reversal
+                m1 = repmat(chosen_model.weights{4}(:), [1, size(h,3)]);
 
-            for bb = 1:3
-                b(bb, :) = chosen_model.biases{bb}';
+                b2 = chosen_model.weights{5}(:);
+            else
+                m1 = [-30 60 -30];
+                
+                b2(4, :) = chosen_model.weights{4}(:);
             end
             
-            b(4, :) = chosen_model.weights{4}(:)';
-            
-            [h,b,m] = FlipFilters(h,b,m);
+            for bb = 1:3
+                b1(bb, :) = chosen_model.biases{bb}';
+            end
+                
+            m2 = chosen_model.weights{end}(:);
+                
+            [h,b1,m1,b2,m2] = FlipFilters(h,b1,m1,b2,m2);
 
-            model_structure = @ConductanceModel;
+            model_structure = @conductance_model;
             
-        case 'LNLN_flip'
-            % load in backwards so that when we rotate 180 degrees its
-            % in the correct orientation
-            % this was written so hacky with m2 i'm ashamed.
-            filt_in = size(chosen_model.weights{1},4);
-            for ff = 1:filt_in
+        case 'lnln_model_flip'
+            for ff = 1:size(chosen_model.weights{1},4)
                 h(:,:,ff) = [chosen_model.weights{1}(:,:,:,ff) chosen_model.weights{2}(:,:,:,ff) chosen_model.weights{3}(:,:,:,ff)];
             end
 
             h = flipud(h);
 
-            m = chosen_model.weights{end}(:);
-
+            m1 = repmat(chosen_model.weights{4}(:), [1, size(h,3)]);
+            
             for bb = 1:3
-                b(bb, :) = chosen_model.biases{bb}';
+                b1(bb, :) = chosen_model.biases{bb}';
             end
             
-            b(4, :) = repmat(chosen_model.biases{4}(:), [2 1])';
-            m2_in = chosen_model.weights{4}(:);
-            
-            for ff = 1:filt_in
-                m2{ff} = m2_in;
-            end
-            
-            for ff = 1:filt_in
-                m2{filt_in+ff} = flipud(m2_in);
-            end
-            
-            [h,b,m] = FlipFilters(h,b,m);
+            b2 = chosen_model.weights{5}(:);
 
-            model_structure = @(d,x,y,z)LNLN_model(d,x,y,z,m2);
+            m2 = chosen_model.weights{end}(:);
+                
+            [h,b1,m1,b2,m2] = FlipFilters(h,b1,m1,b2,m2);
+
+            model_structure = @lnln_model;
 
         otherwise
             error('counldnt detect model type');
@@ -166,7 +172,7 @@ function AnalyzeRigidRotOutput
     
     
     % get model output
-    [model_output, component_output] = model_structure(data_set,h,b,m);
+    [model_output, component_output] = model_structure(data_set,h,b1,m1,b2,m2);
 
     fraction_zero = zeros(size(component_output));
     for cc = 1:length(component_output)
@@ -202,54 +208,65 @@ function AnalyzeRigidRotOutput
     c_max = max(abs(h(:)));
     plot_max = max(abs(h(:)));
     
-    b_max = max([b(:); 0]);
-    b_min = min([b(:); 0]);
+    b_max = max([b1(:); b2(:); 0]);
+    b_min = min([b1(:); b2(:); 0]);
     
-    mult_max = max(abs(m(:)));
+    mult_max = max(abs([m1(:); m2(:)]));
     
     MakeFigure;
     for pp = 1:size(h,3)
-        subplot(4,num_filt,pp);
-        plot(t,h(:,:,pp));
-        hold on;
-        PlotConstLine(0);
-        hold off;
-        ylim([-plot_max plot_max]);
-        ConfAxis();
-        
-        if pp == 1
-            title({'fraction zeros = ', fraction_zero(pp)});
-            xlabel('time (ms)');
-        else
-            title(fraction_zero(pp));
-        end
-        
-        subplot(4,num_filt,num_filt+pp);
+        subplot(6,num_filt,[pp num_filt+pp]);
         imagesc(x, t_label, h(:,:,pp));
         caxis([-c_max c_max]);
 %         set(gca,'XAxisLocation','top');
         ConfAxis();
+        
         if pp==1
-            xlabel(['space (' char(186) ')']);
+%             xlabel(['space (' char(186) ')']);
             ylabel('time (ms)');
+            title({'fraction zeros = ', fraction_zero(pp)});
+        else
+            xlabel(' ');
+            title(fraction_zero(pp));
         end
         
-        
-        subplot(4,num_filt,2*num_filt+pp);
-        bar(b(:,pp));
+        subplot(6,num_filt,2*num_filt+pp);
+        bar(b1(:,pp));
         ylim([b_min b_max]);
         ConfAxis()
         if pp==1
             ylabel('filter offset');
         end
         
-        subplot(4,num_filt,3*num_filt+pp);
-        imagesc(m(pp));
+        subplot(6,num_filt,3*num_filt+pp);
+        imagesc(m1(:,pp)');
         caxis([-mult_max mult_max]);
         axis off;
         ConfAxis();
+        if pp==1
+            ylabel('weights');
+        end
         
-        sgtitle(['R2 = ' num2str(chosen_model.val_r2(end))]);
+        subplot(6,num_filt,4*num_filt+pp);
+        bar(b2(pp));
+        ylim([b_min b_max]);
+        ConfAxis()
+        if pp==1
+            ylabel('filter offset');
+        end
+        
+        subplot(6,num_filt,5*num_filt+pp);
+        imagesc(m2(pp));
+        caxis([-mult_max mult_max]);
+        axis off;
+        ConfAxis();
+        if pp==1
+            ylabel('weights');
+        end
+        
+        display_name = chosen_model.model_name;
+        display_name = strrep(display_name,'_','\_');
+        sgtitle([display_name ', R2 = ' num2str(chosen_model.val_r2(end))]);
     end
     colormap(flipud(cbrewer('div','RdBu',100)));
    
@@ -304,64 +321,20 @@ function AnalyzeRigidRotOutput
 end
 
 
-function [model_output, component_output] = LnModel(data_set,h,b,m)
+function [model_output, component_output] = ln_model(data_set,h,b1,m1,b2,m2)
     component_output = cell(size(h,3),1);
 
     for h_ind = 1:size(h,3)
         % convolve each filter in the model with each image in the dev set
         for ff = 1:size(data_set,3)
-            component_output{h_ind}(:,:,ff) = conv2(data_set(:,:,ff), h(:,:,h_ind), 'valid') + b(h_ind);
+            component_output{h_ind}(:,:,ff) = conv2(data_set(:,:,ff), h(:,:,h_ind), 'valid') + b2(h_ind);
         end
         
         % rectify
         component_output{h_ind}(component_output{h_ind}<0) = 0;
         
         % multiply before summing
-        component_output{h_ind} = m(h_ind)*component_output{h_ind};
-    end
-    
-    model_output = component_output{1};
-    
-    for cc = 2:length(component_output)
-        model_output = model_output + component_output{cc};
-    end
-end
-
-    
-function [model_output, component_output] = ConductanceModel(data_set,h,b,m)
-    % calculates the output of the conductance model and all its
-    % intermediate steps. h, b, m should be matricies from a single model
-    % not cell arrays of multiple models
-
-    component_output = cell(size(h,3),1);
-    v_exc = 60;
-    v_inh = -30;
-    g_leak = 1;
-    channels = zeros(size(data_set,1)-size(h,1)+1,size(data_set,2)-2,3);
-
-    for h_ind = 1:size(h,3)
-        % convolve each filter in the model with each image in the dev set
-        for ff = 1:size(data_set,3)
-            
-            for ii = 1:3
-                channels(:,:,ii) = conv2(data_set(:,ii:end-3+ii,ff), h(:,ii,h_ind), 'valid') + b(ii, h_ind);
-            end
-            
-            % rectify the channels
-            channels(channels<0) = 0;
-            
-            numerator = v_inh*channels(:,:,1) + v_exc*channels(:,:,2) + v_inh*channels(:,:,3);
-            denomenator = g_leak + sum(channels,3);
-            component_output{h_ind}(:,:,ff) = numerator./denomenator;
-        end
-        
-        component_output{h_ind} = component_output{h_ind} + b(4,h_ind);
-        
-        % rectify
-        component_output{h_ind}(component_output{h_ind}<0) = 0;
-        
-        % multiply before summing
-        component_output{h_ind} = m(h_ind)*component_output{h_ind};
+        component_output{h_ind} = m2(h_ind)*component_output{h_ind};
     end
     
     model_output = component_output{1};
@@ -372,7 +345,7 @@ function [model_output, component_output] = ConductanceModel(data_set,h,b,m)
 end
 
 
-function [model_output, component_output] = LNLN_model(data_set,h,b,m,m2)
+function [model_output, component_output] = lnln_model(data_set,h,b1,m1,b2,m2)
     % calculates the output of the LNLN model and all its
     % intermediate steps.
 
@@ -384,22 +357,22 @@ function [model_output, component_output] = LNLN_model(data_set,h,b,m,m2)
         for ff = 1:size(data_set,3)
             
             for ii = 1:3
-                channels(:,:,ii) = conv2(data_set(:,ii:end-3+ii,ff), h(:,ii,h_ind), 'valid') + b(ii, h_ind);
+                channels(:,:,ii) = conv2(data_set(:,ii:end-3+ii,ff), h(:,ii,h_ind), 'valid') + b1(ii, h_ind);
             end
             
             % rectify the channels
             channels(channels<0) = 0;
             
-            component_output{h_ind}(:,:,ff) = m2{h_ind}(1)*channels(:,:,1) + m2{h_ind}(2)*channels(:,:,2) + m2{h_ind}(3)*channels(:,:,3);
+            component_output{h_ind}(:,:,ff) = m1(1,h_ind)*channels(:,:,1) + m1(2,h_ind)*channels(:,:,2) + m1(3,h_ind)*channels(:,:,3);
         end
         
-        component_output{h_ind} = component_output{h_ind} + b(4,h_ind);
+        component_output{h_ind} = component_output{h_ind} + b2(h_ind);
         
         % rectify
         component_output{h_ind}(component_output{h_ind}<0) = 0;
         
         % multiply before summing
-        component_output{h_ind} = m(h_ind)*component_output{h_ind};
+        component_output{h_ind} = m2(h_ind)*component_output{h_ind};
     end
     
     model_output = component_output{1};
@@ -410,13 +383,54 @@ function [model_output, component_output] = LNLN_model(data_set,h,b,m,m2)
 end
 
 
-function [h,b,m] = FlipFilters(h,b,m)
-    h = cat(3, h, fliplr(h));
-    b = cat(2, b, b);
-    if size(b,1)>1
-        b(1:3,3:end) = flipud(b(1:3,3:end));
+function [model_output, component_output] = conductance_model(data_set,h,b1,m1,b2,m2)
+    component_output = cell(size(h,3),1);
+    g_leak = 1;
+    channels = zeros(size(data_set,1)-size(h,1)+1,size(data_set,2)-2,3);
+
+    for h_ind = 1:size(h,3)
+        % convolve each filter in the model with each image in the dev set
+        for ff = 1:size(data_set,3)
+            
+            for ii = 1:3
+                channels(:,:,ii) = conv2(data_set(:,ii:end-3+ii,ff), h(:,ii,h_ind), 'valid') + b1(ii, h_ind);
+            end
+            
+            % rectify the channels
+            channels(channels<0) = 0;
+            
+            numerator = m1(1,h_ind)*channels(:,:,1) + m1(2,h_ind)*channels(:,:,2) + m1(3,h_ind)*channels(:,:,3);
+            denomenator = g_leak + sum(channels,3);
+            component_output{h_ind}(:,:,ff) = numerator./denomenator;
+        end
+        
+        component_output{h_ind} = component_output{h_ind} + b2(h_ind);
+        
+        % rectify
+        component_output{h_ind}(component_output{h_ind}<0) = 0;
+        
+        % multiply before summing
+        component_output{h_ind} = m2(h_ind)*component_output{h_ind};
     end
-    m = cat(1, m, -m);
+    
+    model_output = component_output{1};
+    
+    for cc = 2:length(component_output)
+        model_output = model_output + component_output{cc};
+    end
+end
+
+
+
+
+function [h,b1,m1,b2,m2] = FlipFilters(h,b1,m1,b2,m2)
+    h = cat(3, h, fliplr(h));
+    
+    b1 = cat(2, b1, flipud(b1));
+    m1 = cat(2, m1, flipud(m1));
+    
+    b2 = cat(1, b2, b2);
+    m2 = cat(1, m2, -m2);
 end
     
     

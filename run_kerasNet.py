@@ -8,22 +8,27 @@ import datetime
 # parameters of filters
 no_opponency = False
 num_runs = 1
-num_runs = 20
+num_runs = 5
 filter_time = 0.2  # s
 filter_time = 0.3
 noise_std_list = [0.1]
 # noise_std_list = [0.1, 1.0]
 filter_space_list = [15]  # degrees
 sum_over_space_list = [False]
-num_filt_list = [4]
+num_filt_list = [8]
 batch_size_list = [np.power(2, 6)]
-batch_size_list = [np.power(2, 8)]
+# batch_size_list = [np.power(2, 8)]
 learning_rate_list = [0.1]
 learning_rate_list = [0.1]
 epoch_list = [200]
-epoch_list = [25]
+epoch_list = [50]
 normalize_list = [True]
-normalize_list = [False, True]
+# normalize_list = [False, True]
+fit_reversal = True
+
+# choose model function names
+model_function_name_list = ['lnln_model_flip']
+# model_function_name_list = ['ln_model_flip', 'lnln_model_flip', 'conductance_model_flip']
 
 # define the input path
 # data set location
@@ -63,22 +68,24 @@ for run_number in range(num_runs):
                         for epochs in epoch_list:
                             for noise_std in noise_std_list:
                                 for normalize in normalize_list:
-
-                                    param_dict.append({
-                                                       'num_filt': num_filt,
-                                                       'sum_over_space': sum_over_space,
-                                                       'filter_time': filter_time,
-                                                       'filter_space': filter_space,
-                                                       'sample_freq': int(sample_freq),
-                                                       'phase_step': int(phase_step),
-                                                       'learning_rate': learning_rate,
-                                                       'data_set_path': path,
-                                                       'epochs': epochs,
-                                                       'batch_size': batch_size,
-                                                       'noise_std': noise_std,
-                                                       'normalize_std': normalize,
-                                                       'no_opponency': no_opponency,
-                                                       })
+                                    for model_function_name in model_function_name_list:
+                                        param_dict.append({
+                                                           'num_filt': num_filt,
+                                                           'sum_over_space': sum_over_space,
+                                                           'filter_time': filter_time,
+                                                           'filter_space': filter_space,
+                                                           'sample_freq': int(sample_freq),
+                                                           'phase_step': int(phase_step),
+                                                           'learning_rate': learning_rate,
+                                                           'data_set_path': path,
+                                                           'epochs': epochs,
+                                                           'batch_size': batch_size,
+                                                           'noise_std': noise_std,
+                                                           'normalize_std': normalize,
+                                                           'no_opponency': no_opponency,
+                                                           'fit_reversal': fit_reversal,
+                                                           'model_function_name': model_function_name,
+                                                           })
 
 total_runs = len(param_dict)
 
@@ -93,8 +100,16 @@ for p_ind, p in enumerate(param_dict):
     # model, pad_x, pad_t = md.ln_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
     # model, pad_x, pad_t = md.ln_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, filter_indicies_x), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
     # model, pad_x, pad_t = md.conductance_model(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'], fit_reversal=False)
-    # model, pad_x, pad_t = md.conductance_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'], fit_reversal=False)
-    model, pad_x, pad_t = md.LNLN_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'])
+    # model, pad_x, pad_t = md.conductance_model_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'], fit_reversal=True)
+    # model, pad_x, pad_t = md.LNLN_flip(input_shape=(size_t, size_x, n_c), filter_shape=(filter_indicies_t, 1), num_filter=p['num_filt'], sum_over_space=p['sum_over_space'], fit_reversal=True)
+
+    # initialize model
+    method_to_call = getattr(md, p['model_function_name'])
+    model, pad_x, pad_t = method_to_call(input_shape=(size_t, size_x, n_c),
+                                         filter_shape=[filter_indicies_t, filter_indicies_x],
+                                         num_filter=p['num_filt'],
+                                         sum_over_space=p['sum_over_space'],
+                                         fit_reversal=p['fit_reversal'])
 
     param_dict[p_ind]['model_name'] = model.name
 

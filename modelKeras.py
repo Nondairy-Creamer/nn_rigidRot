@@ -45,13 +45,15 @@ def ln_model(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_ove
     return model, pad_x, pad_t
 
 
-def conductance_model(input_shape=(11, 9, 1), filter_shape=(21, 1), num_filter=2, sum_over_space=True, fit_reversal=False):
+def conductance_model(input_shape=(11, 9, 1), filter_shape=[21, 1], num_filter=2, sum_over_space=True, fit_reversal=False):
     reg_val = 1
 
     v_leak = 0
     v_exc = 60
     v_inh = -30
     g_leak = 1
+
+    filter_shape[1] = 1
 
     pad_x = int((filter_shape[1] - 1))+2
     pad_t = int((filter_shape[0] - 1))
@@ -124,13 +126,15 @@ def conductance_model(input_shape=(11, 9, 1), filter_shape=(21, 1), num_filter=2
     return model, pad_x, pad_t
 
 
-def conductance_model_flip(input_shape=(11, 9, 1), filter_shape=(21, 1), num_filter=2, sum_over_space=True, fit_reversal=False):
+def conductance_model_flip(input_shape=(11, 9, 1), filter_shape=[21, 1], num_filter=2, sum_over_space=True, fit_reversal=False):
     reg_val = 1
 
     v_leak = 0
     v_exc = 60
     v_inh = -30
     g_leak = 1
+
+    filter_shape[1] = 1
 
     assert(np.mod(num_filter, 2) == 0)
     num_filter = int(num_filter/2)
@@ -185,13 +189,12 @@ def conductance_model_flip(input_shape=(11, 9, 1), filter_shape=(21, 1), num_fil
                                 kernel_initializer=glorot_uniform(seed=None),
                                 kernel_regularizer=l1_reg_sqrt,
                                 use_bias=False)
-        reverseLayer2 = Lambda(lambda x: K.reverse(x, axes=4))
 
         numerator_1 = numerator_comb(numerator_in_1)
         denominator_1 = Lambda(lambda inputs: g_leak + inputs[0] + inputs[1] + inputs[2])([g1_1, g2_both, g3_1])
         vm_1 = Lambda(lambda inputs: inputs[0] / inputs[1])([numerator_1, denominator_1])
 
-        numerator_2 = numerator_comb(reverseLayer2(numerator_in_2))
+        numerator_2 = numerator_comb(numerator_in_2)
         denominator_2 = Lambda(lambda inputs: g_leak + inputs[0] + inputs[1] + inputs[2])([g1_2, g2_both, g3_2])
         vm_2 = Lambda(lambda inputs: inputs[0] / inputs[1])([numerator_2, denominator_2])
 
@@ -242,11 +245,20 @@ def conductance_model_flip(input_shape=(11, 9, 1), filter_shape=(21, 1), num_fil
     return model, pad_x, pad_t
 
 
-def LNLN_flip(input_shape=(11, 9, 1), filter_shape=(21, 1), num_filter=2, sum_over_space=True):
-    assert(np.mod(num_filter, 2) == 0)
-    num_filter = int(num_filter/2)
+def lnln_model_flip(input_shape=(11, 9, 1), filter_shape=[21, 1], num_filter=2, sum_over_space=True, fit_reversal=True):
+    reg_val = 1
 
-    pad_x = int((filter_shape[1] - 1))+2
+    v_leak = 0
+    v_exc = 60
+    v_inh = -30
+    g_leak = 1
+
+    filter_shape[1] = 1
+
+    assert (np.mod(num_filter, 2) == 0)
+    num_filter = int(num_filter / 2)
+
+    pad_x = int((filter_shape[1] - 1)) + 2
     pad_t = int((filter_shape[0] - 1))
 
     # Define the input as a tensor with shape input_shape
@@ -294,18 +306,22 @@ def LNLN_flip(input_shape=(11, 9, 1), filter_shape=(21, 1), num_filter=2, sum_ov
     numerator_comb = Conv3D(1, (1, 1, 1), strides=(1, 1, 1), name='create_numerator',
                             kernel_initializer=glorot_uniform(seed=None),
                             kernel_regularizer=l1_reg_sqrt,
-                            use_bias=True,
-                            activation='relu')
+                            use_bias=False)
 
-    reverse_layer = Lambda(lambda x: K.reverse(x, axes=4))
+    vm_1 = numerator_comb(numerator_in_1)
+    vm_2 = numerator_comb(numerator_in_2)
 
-    numerator_1 = numerator_comb(numerator_in_1)
-    numerator_2 = numerator_comb(reverse_layer(numerator_in_2))
+    vm_1 = squeeze_last(vm_1)
+    vm_2 = squeeze_last(vm_2)
 
-    numerator_1 = squeeze_last(numerator_1)
-    numerator_2 = squeeze_last(numerator_2)
+    bias_layer = BiasLayer()
+    vm_1_bias = bias_layer(vm_1)
+    vm_2_bias = bias_layer(vm_2)
 
-    vm = subtract([numerator_1, numerator_2])
+    vm_1_rect = Lambda(lambda lam: K.relu(lam))(vm_1_bias)
+    vm_2_rect = Lambda(lambda lam: K.relu(lam))(vm_2_bias)
+
+    vm = subtract([vm_1_rect, vm_2_rect])
 
     if sum_over_space:
         conv_x_size = vm.get_shape().as_list()[2]
@@ -318,7 +334,7 @@ def LNLN_flip(input_shape=(11, 9, 1), filter_shape=(21, 1), num_filter=2, sum_ov
                              use_bias=False)(vm)
 
     # Create model
-    model = Model(inputs=image_in, outputs=combine_filters, name='LNLN_flip')
+    model = Model(inputs=image_in, outputs=combine_filters, name='lnln_model_flip')
 
     return model, pad_x, pad_t
 
@@ -362,7 +378,7 @@ def ln_model_medulla(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2,
     return model, pad_x, pad_t
 
 
-def ln_model_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True):
+def ln_model_flip(input_shape=(11, 9, 1), filter_shape=(21, 9), num_filter=2, sum_over_space=True, fit_reversal=True):
     reg_val = 1
 
     # Define the input as a tensor with shape input_shape
